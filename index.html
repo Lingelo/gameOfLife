@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Jeu de la Vie</title>
+    <style>
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+    <script src="game-of-life.js"></script>
+  </body>
+  <script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+// Dimensions de la grille
+const width = window.innerWidth;
+const height = window.innerHeight;
+const resolution = 5;
+
+// Création d'une grille vide
+function buildGrid() {
+  return new Array(Math.floor(height / resolution))
+    .fill(null)
+    .map(() => new Array(Math.floor(width / resolution)).fill(0));
+}
+
+let grid = buildGrid();
+
+// Initialisation de la grille aléatoirement
+function randomizeGrid() {
+  grid = grid.map(row =>
+    row.map(() => Math.floor(Math.random() * 2))
+  );
+}
+
+randomizeGrid();
+
+// Dessiner la grille sur le canvas
+function drawGrid() {
+  ctx.clearRect(0, 0, width, height);
+  
+  // Désactiver les contours
+  ctx.strokeStyle = 'transparent';
+
+  grid.forEach((row, rowIndex) => {
+    row.forEach((col, colIndex) => {
+      ctx.beginPath();
+      ctx.rect(
+        colIndex * resolution,
+        rowIndex * resolution,
+        resolution,
+        resolution
+      );
+      ctx.fillStyle = grid[rowIndex][colIndex] ? 'black' : 'white';
+      ctx.fill();
+      ctx.stroke();
+    });
+  });
+}
+
+// Calculer la prochaine génération de la grille
+function getNextGeneration() {
+  const nextGeneration = buildGrid();
+
+  grid.forEach((row, rowIndex) => {
+    row.forEach((col, colIndex) => {
+      const neighbors = countNeighbors(grid, rowIndex, colIndex);
+
+      if (col === 1 && neighbors < 2) {
+        nextGeneration[rowIndex][colIndex] = 0;
+      } else if (col === 1 && (neighbors === 2 || neighbors === 3)) {
+        nextGeneration[rowIndex][colIndex] = 1;
+      } else if (col === 1 && neighbors > 3) {
+        nextGeneration[rowIndex][colIndex] = 0;
+      } else if (col === 0 && neighbors === 3) {
+        nextGeneration[rowIndex][colIndex] = 1;
+      } else {
+        nextGeneration[rowIndex][colIndex] = col;
+      }
+    });
+  });
+
+  grid = nextGeneration;
+}
+
+// Compter le nombre de voisins pour une cellule donnée
+function countNeighbors(grid, row, col) {
+  let count = 0;
+
+  for (let i = -1; i < 2; i++) {
+    for (let j = -1; j < 2; j++) {
+      const r = (row + i + grid.length) % grid.length;
+      const c = (col + j + grid[0].length) % grid[0].length;
+      count += grid[r][c];
+    }
+  }
+
+  count -= grid[row][col];
+  return count;
+}
+
+// Boucle d'animation
+function animate() {
+  drawGrid();
+  getNextGeneration();
+  setTimeout(animate, 100);
+}
+
+animate();
+
+
+  </script>
+</html>
