@@ -1,60 +1,56 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <title>Jeu de la Vie en JavaScript</title>
+    <title>Jeu de la Vie Optimisé</title>
+    <style>
+        body, html { margin: 0; padding: 0; overflow: hidden; }
+    </style>
 </head>
 <body>
-<canvas id="gameCanvas" width="500" height="500"></canvas>
+<canvas id="gameCanvas"></canvas>
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const cellSize = 10;
-    // /!\ attention c'est déjà assez gourmand les 500 / 500
-    const numRows = canvas.height / cellSize;
-    const numCols = canvas.width / cellSize;
+    const cellSize = 5;
 
-    // Créer une grille vide
-    let grid = new Array(numRows).fill(0).map(() => new Array(numCols).fill(0));
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
 
-    // Fonction pour dessiner la grille
+    resizeCanvas();
+
+    const numRows = Math.floor(canvas.height / cellSize);
+    const numCols = Math.floor(canvas.width / cellSize);
+
+    let grid = Array.from({ length: numRows }, () => Array(numCols).fill(false));
+
     function drawGrid() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         for (let i = 0; i < numRows; i++) {
             for (let j = 0; j < numCols; j++) {
-                ctx.beginPath();
-                ctx.rect(j * cellSize, i * cellSize, cellSize, cellSize);
                 ctx.fillStyle = grid[i][j] ? 'black' : 'white';
-                ctx.fill();
-                ctx.stroke();
+                ctx.fillRect(j * cellSize, i * cellSize, cellSize, cellSize);
             }
         }
     }
 
-    // Fonction pour mettre à jour la grille à chaque génération
     function updateGrid() {
-        const newGrid = new Array(numRows).fill(0).map(() => new Array(numCols).fill(0));
+        const newGrid = Array.from({ length: numRows }, () => Array(numCols).fill(false));
         for (let i = 0; i < numRows; i++) {
             for (let j = 0; j < numCols; j++) {
                 const neighbors = countNeighbors(i, j);
-                if (grid[i][j]) {
-                    // Si la cellule est vivante
-                    if (neighbors === 2 || neighbors === 3) {
-                        newGrid[i][j] = 1;
-                    } else {
-                        newGrid[i][j] = 0;
-                    }
-                } else {
-                    // Si la cellule est morte
-                    if (neighbors === 3) {
-                        newGrid[i][j] = 1;
-                    }
+
+                if (grid[i][j] && (neighbors === 2 || neighbors === 3)) {
+                    newGrid[i][j] = true;
+                } else if (!grid[i][j] && neighbors === 3) {
+                    newGrid[i][j] = true;
                 }
             }
         }
         grid = newGrid;
     }
 
-    // Fonction pour compter le nombre de voisins d'une cellule
     function countNeighbors(row, col) {
         let count = 0;
         for (let i = -1; i <= 1; i++) {
@@ -62,35 +58,38 @@
                 if (i === 0 && j === 0) continue;
                 const newRow = row + i;
                 const newCol = col + j;
-                if (newRow >= 0 && newRow < numRows && newCol >= 0 && newCol < numCols) {
-                    count += grid[newRow][newCol];
+                if (newRow >= 0 && newRow < numRows && newCol >= 0 && newCol < numCols && grid[newRow][newCol]) {
+                    count++;
                 }
             }
         }
         return count;
     }
 
-    // Fonction pour initialiser la grille avec des cellules aléatoirement vivantes
     function initGridRandom() {
         for (let i = 0; i < numRows; i++) {
             for (let j = 0; j < numCols; j++) {
-                grid[i][j] = Math.random() < 0.5 ? 0 : 1;
+                grid[i][j] = Math.random() < 0.5;
             }
         }
     }
 
-    // Fonction pour lancer le jeu
     function startGame() {
         initGridRandom();
         drawGrid();
         setInterval(() => {
             updateGrid();
             drawGrid();
-        }, 100); // Modifier ce délai pour ajuster la vitesse du jeu
+        }, 100);
     }
 
-    // Lancer le jeu quand la page est chargée
-    window.onload = startGame;
+    window.onload = function() {
+        startGame();
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            drawGrid();
+        });
+    };
 </script>
 </body>
 </html>
