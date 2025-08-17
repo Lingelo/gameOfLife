@@ -17,7 +17,7 @@
 <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const cellSize = 8;
+    const cellSize = window.innerWidth < 768 ? 12 : 8;
 
     function resizeCanvas() {
         canvas.width = window.innerWidth;
@@ -39,44 +39,62 @@
     let lastInjectionTime = 0;
     let currentTouchX = 0;
     let currentTouchY = 0;
+    let isMobile = window.innerWidth < 768;
 
     function drawGrid() {
-        ctx.fillStyle = 'rgba(10, 10, 10, 0.1)';
+        ctx.fillStyle = 'rgba(10, 10, 10, 0.15)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         
-        animationTime += 0.05;
+        animationTime += 0.03;
         
-        const centerRow = Math.floor(numRows / 2);
-        const centerCol = Math.floor(numCols / 2);
-        
-        const cells = [];
-        for (let i = 0; i < numRows; i++) {
-            for (let j = 0; j < numCols; j++) {
-                const distance = Math.sqrt((i - centerRow) ** 2 + (j - centerCol) ** 2);
-                cells.push({ row: i, col: j, distance });
+        if (isMobile) {
+            // Version mobile simplifiée - parcours linéaire
+            for (let i = 0; i < numRows; i++) {
+                for (let j = 0; j < numCols; j++) {
+                    if (grid[i][j]) {
+                        drawLiveCellSimple(i, j);
+                    }
+                }
             }
+        } else {
+            // Version desktop - parcours en spirale
+            const centerRow = Math.floor(numRows / 2);
+            const centerCol = Math.floor(numCols / 2);
+            
+            const cells = [];
+            for (let i = 0; i < numRows; i++) {
+                for (let j = 0; j < numCols; j++) {
+                    const distance = Math.sqrt((i - centerRow) ** 2 + (j - centerCol) ** 2);
+                    cells.push({ row: i, col: j, distance });
+                }
+            }
+            
+            cells.sort((a, b) => {
+                const waveA = Math.sin(a.distance * 0.3 + animationTime * 5) + Math.random() * 0.5;
+                const waveB = Math.sin(b.distance * 0.3 + animationTime * 5) + Math.random() * 0.5;
+                return waveA - waveB;
+            });
+            
+            cells.forEach(cell => {
+                if (grid[cell.row][cell.col]) {
+                    drawLiveCell(cell.row, cell.col);
+                } else {
+                    drawDeadCell(cell.row, cell.col);
+                }
+            });
         }
-        
-        cells.sort((a, b) => {
-            const waveA = Math.sin(a.distance * 0.3 + animationTime * 5) + Math.random() * 0.5;
-            const waveB = Math.sin(b.distance * 0.3 + animationTime * 5) + Math.random() * 0.5;
-            return waveA - waveB;
-        });
-        
-        cells.forEach(cell => {
-            if (grid[cell.row][cell.col]) {
-                drawLiveCell(cell.row, cell.col);
-            } else {
-                drawDeadCell(cell.row, cell.col);
-            }
-        });
         
         // Effet continu si bouton/doigt pressé
         if (isPressed) {
-            drawContinuousEffect(currentTouchX, currentTouchY);
+            if (isMobile) {
+                drawContinuousEffectSimple(currentTouchX, currentTouchY);
+            } else {
+                drawContinuousEffect(currentTouchX, currentTouchY);
+            }
             
-            // Injection continue toutes les 300ms
-            if (Date.now() - lastInjectionTime > 300) {
+            // Injection continue - plus lent sur mobile
+            const interval = isMobile ? 500 : 300;
+            if (Date.now() - lastInjectionTime > interval) {
                 injectLifeAtPosition(currentTouchX, currentTouchY);
                 lastInjectionTime = Date.now();
             }
@@ -113,6 +131,36 @@
         ctx.beginPath();
         ctx.arc(x + cellSize/2, y + cellSize/2, size/2, 0, Math.PI * 2);
         ctx.fill();
+        
+        ctx.restore();
+    }
+
+    function drawLiveCellSimple(row, col) {
+        const x = col * cellSize;
+        const y = row * cellSize;
+        const age = cellAge[row][col];
+        
+        const hue = (age * 15) % 360;
+        const saturation = 80;
+        const lightness = 60;
+        
+        ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+        ctx.beginPath();
+        ctx.arc(x + cellSize/2, y + cellSize/2, cellSize/3, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    function drawContinuousEffectSimple(x, y) {
+        ctx.save();
+        
+        const pulse = Math.sin(animationTime * 6) * 0.5 + 0.5;
+        const radius = 15 + pulse * 8;
+        
+        ctx.strokeStyle = `rgba(0, 255, 136, ${0.7 * pulse})`;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, Math.PI * 2);
+        ctx.stroke();
         
         ctx.restore();
     }
@@ -195,68 +243,64 @@
     }
 
     function createClickAnimation(x, y) {
-        for (let i = 0; i < 8; i++) {
+        const iterations = isMobile ? 4 : 8;
+        for (let i = 0; i < iterations; i++) {
             setTimeout(() => {
                 ctx.save();
-                ctx.globalAlpha = 1 - (i * 0.12);
+                ctx.globalAlpha = 1 - (i * (1/iterations));
                 ctx.strokeStyle = '#00ff88';
-                ctx.lineWidth = 3 - (i * 0.3);
-                ctx.shadowColor = '#00ff88';
-                ctx.shadowBlur = 10;
+                ctx.lineWidth = isMobile ? 2 : 3 - (i * 0.3);
+                
+                if (!isMobile) {
+                    ctx.shadowColor = '#00ff88';
+                    ctx.shadowBlur = 10;
+                }
                 
                 ctx.beginPath();
-                ctx.arc(x, y, i * 8, 0, Math.PI * 2);
+                ctx.arc(x, y, i * (isMobile ? 6 : 8), 0, Math.PI * 2);
                 ctx.stroke();
                 
-                // Particules qui s'échappent
-                for (let j = 0; j < 6; j++) {
-                    const angle = (j / 6) * Math.PI * 2;
-                    const px = x + Math.cos(angle) * i * 5;
-                    const py = y + Math.sin(angle) * i * 5;
-                    
-                    ctx.fillStyle = `rgba(0, 255, 136, ${1 - (i * 0.12)})`;
-                    ctx.beginPath();
-                    ctx.arc(px, py, 2, 0, Math.PI * 2);
-                    ctx.fill();
+                // Particules réduites sur mobile
+                if (!isMobile) {
+                    for (let j = 0; j < 6; j++) {
+                        const angle = (j / 6) * Math.PI * 2;
+                        const px = x + Math.cos(angle) * i * 5;
+                        const py = y + Math.sin(angle) * i * 5;
+                        
+                        ctx.fillStyle = `rgba(0, 255, 136, ${1 - (i * 0.12)})`;
+                        ctx.beginPath();
+                        ctx.arc(px, py, 2, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
                 }
                 
                 ctx.restore();
-            }, i * 50);
+            }, i * (isMobile ? 80 : 50));
         }
     }
 
     function createCellBirthAnimation(row, col) {
+        if (isMobile) return; // Pas d'animation sur mobile
+        
         const x = col * cellSize + cellSize/2;
         const y = row * cellSize + cellSize/2;
         
-        for (let i = 0; i < 6; i++) {
+        for (let i = 0; i < 3; i++) {
             setTimeout(() => {
                 ctx.save();
-                ctx.globalAlpha = 1 - (i * 0.15);
+                ctx.globalAlpha = 1 - (i * 0.3);
                 
-                // Étoile qui pulse
                 ctx.strokeStyle = '#ffaa00';
                 ctx.lineWidth = 2;
-                ctx.shadowColor = '#ffaa00';
-                ctx.shadowBlur = 8;
                 
-                const size = cellSize * (0.5 + i * 0.3);
+                const size = cellSize * (0.5 + i * 0.2);
                 
                 ctx.beginPath();
-                for (let star = 0; star < 8; star++) {
-                    const angle = (star / 8) * Math.PI * 2;
-                    const radius = star % 2 === 0 ? size : size * 0.5;
-                    const px = x + Math.cos(angle) * radius;
-                    const py = y + Math.sin(angle) * radius;
-                    
-                    if (star === 0) ctx.moveTo(px, py);
-                    else ctx.lineTo(px, py);
-                }
-                ctx.closePath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
                 ctx.stroke();
                 
                 ctx.restore();
-            }, i * 80);
+            }, i * 60);
         }
     }
 
@@ -417,7 +461,7 @@
         
         setInterval(() => {
             updateGrid();
-        }, 120);
+        }, isMobile ? 200 : 120);
     };
 </script>
 </body>
